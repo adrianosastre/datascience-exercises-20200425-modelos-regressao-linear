@@ -1,0 +1,201 @@
+---
+title: "Exercício Computacional 1 (Regressão Linear Simples)"
+output: html_notebook
+---
+
+Importando libraries:
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(mapview)
+library(sp)
+library(leaflet)
+```
+
+Setando o diretório corrente:
+
+```{r}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+getwd()
+```
+
+Considere o conjunto de dados data.txt, que organiza em um arquivo de texto dados sobre os lucros de diversas empresas e a população da cidade na qual a respectiva empresa se localiza. Nosso objetivo, é conduzir uma análise de regressão linear simples para que possamos construir um modelo que busque explicar os dados que temos acesso.
+
+A variável explanatória, i.e., feature ou variável de entrada, é o conjunto de dados populacionais das cidades (baseados em 10,000 habitantes) em uma região analisada nos USA, enquanto a variável dependente, ou de saída, consiste nos lucros declarados pelas empresas (baseados em uma escala de $10,000 dólares) que atuam nas cidades da região analisada. De forma analítica, a função hipótese candidata no caso do modelo de regressão linear é dada por:
+
+ˆhq (x) = q0 +q1x1 (1.5)
+
+Considere a função custo retratada pelo erro quadrático médio para construção do modelo de ML. Abaixo, seguem os itens que devemos solucionar neste desenvolvimento, visando alcançar o objetivo do exercício:
+
+Questões Avaliativas
+
+– 1) Faça a análise exploratória das variáveis de entrada e saída. Utilize os nomes population e profit.
+
+```{r}
+data_1 <- read.table('data.txt', sep = ',')
+names(data_1) <- c("population","profit")
+
+data_1
+class(data_1)
+dim(data_1)
+str(data_1)
+
+chart_1 <- ggplot(data_1,
+                        aes( x = population, y = profit)) + 
+                        xlab('Population (* 10k inhabitants)')+
+                        ylab('Profit (* $10k dolares)')
+  
+layer_1 <- geom_point()
+
+
+chart_1 <- chart_1 + layer_1
+
+chart_1
+```
+
+– 2) Construa e treine o modelo preditivo de ML baseado em regressão linear simples.
+
+```{r}
+
+model_1 <- lm(profit ~ population, data = data_1)
+model_1
+
+names(model_1)
+
+# Coeficientes
+model_1$coefficients[1]
+model_1$coefficients[2]
+
+# Resíduos do modelo (diferença entre o modelo e os dados de treinamento)
+model_1$residuals
+```
+
+– 3) Realize as predições do modelo sobre os dados de treinamento e calcule a média de seus resíduos.
+
+```{r}
+# Obtenha a média dos resíduos
+mean_residuals = mean(model_1$residuals)
+mean_residuals
+
+# Gerando predições 
+?predict
+previsao_treinamento = predict(model_1)
+class(previsao_treinamento)
+previsao_treinamento = as.data.frame(previsao_treinamento)
+View(previsao_treinamento)
+class(previsao_treinamento)
+```
+
+– 4) Qual seria a predição de lucro de uma empresa, considerando uma cidade na região analisadas que conta com 100,000 habitantes?
+
+RESPOSTA = 80345.56
+
+```{r}
+# 10 * 10k = 100.000 hqbitantes
+novo_dado      = data.frame(c(10)) 
+colnames(novo_dado) <- c('population')
+novo_dado
+predicao_teste <- predict(model_1, novo_dado)
+predicao_teste <- data.frame(predicao_teste*10000)
+names(predicao_teste) <- c('Predições (dólares)')
+predicao_teste
+```
+
+– 5) Implemente o algoritmo do gradiente descendente.
+
+```{r}
+theta0 = 0
+theta1 = 0
+theta  = c(theta0,theta1)
+# Criando funções
+Cost_computation <- function(x, y, theta){
+  
+  # Verificação do número de exemplos de treinamento 
+  m = length(y)
+  
+  # Inicialização do Custo
+  J = 0
+  
+  # Cômputo do custo a partir das informações fornecidas:
+  # i)   matriz de design
+  # ii)  rótulos ou respostas
+  # iii) parâmetros inicializados
+  
+  # Parâmetros - de acordo com o modelo de regressão linear
+  Theta0 = theta[1]
+  Theta1 = theta[2]
+  
+  # Função hipótese candidata de acordo com o modelo linear
+  h = Theta0 + Theta1*x    
+  
+  # Cômputo do custo (repare na versão vetorizada com Matlab)
+  Cost = sum((h - y)^2)
+  
+  # Ponderação do custo pela quantidade de exemplos de treinamento
+  J = (1/(2*m))*Cost
+}
+
+# Cálculo da função custo para esses valores do vetor de parâmetros theta
+Custo = Cost_computation(10,10,theta)
+Custo
+
+# -----------------------------------------------------------------------------------------------
+# Algoritmo do Gradiente Descendente ------------------------------------------------------------
+
+# Inicializações relacionada ao gradiente descendente
+num_iters     = 15000;
+learning_rate = 0.01;
+
+Algoritmo_GD <- function(X, y, theta, learning_rate, num_iters){
+  
+  # Verificação do número de exemplos de treinamento 
+  m = length(y)
+  
+  # Uso da variável alpha = taxa de aprendizagem 
+  alpha = learning_rate
+  
+  # Loop para iterações do algoritmo GD
+  for (i in 1:num_iters){
+    # ================================================================================
+    h      = theta[1] + theta[2]*x                   # Função hipótese 
+    Theta0 = theta[1]                                # Parâmetro (bias)
+    Theta1 = theta[2]                                # Parâmetro da característica
+    Theta0 = Theta0 - alpha*(1/m)*sum((h - y))       # Algoritmo GD (theta 0) 
+    Theta1 = Theta1 - alpha*(1/m)*sum((h - y)*x)     # Algoritmo GD (theta 1)
+    theta  = c(Theta0, Theta1)                       # Composição de vetor de parâmetro
+    # print(theta)
+  }                         
+  # ================================================================================
+  theta
+}
+theta_GD <- Algoritmo_GD(10, 10, theta, learning_rate, num_iters)
+theta_GD
+```
+
+– 6) Solucione o problema de regressão linear com as equações normais e faça um comparativo.
+
+```{r}
+# Característica unitária
+size_data = dim(data)
+ones_data = replicate(size_data[1],1)
+
+# Matriz de Design
+X = data.frame(ones_data,x)
+X = as.matrix(X)
+View(X)
+
+theta_solution_norm_equations = solve(t(X) %*% X) %*% (t(X) %*% y) 
+theta_0_norm_eq = theta_solution_norm_equations[1]
+theta_1_norm_eq = theta_solution_norm_equations[2]
+theta_0_norm_eq
+theta_1_norm_eq
+```
+
+– 7) Compare os resultados do modelo construído com os parâmetros obtidos com o algoritmo GD
+
+```{r}
+
+```
+
